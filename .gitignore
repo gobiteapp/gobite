@@ -1,0 +1,21 @@
+# Flutter
+apps/mobile/.dart_tool/
+apps/mobile/build/
+apps/mobile/.flutter-plugins
+apps/mobile/.flutter-plugins-dependencies
+apps/web/.dart_tool/
+apps/web/build/
+
+# NestJS / Node
+backend/node_modules/
+backend/dist/
+backend/.env
+
+# Supabase
+supabase/.env
+
+# General
+.env
+.env.local
+.DS_Store
+Thumbs.db
