@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'features/auth/auth_screen.dart';
 import 'features/map/map_screen.dart';
 
 void main() async {
@@ -33,7 +34,9 @@ class GoBiteApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: const MapScreen(),
+      home: Supabase.instance.client.auth.currentSession != null
+          ? const MapScreen()
+          : const AuthScreen(),
     );
   }
 }
