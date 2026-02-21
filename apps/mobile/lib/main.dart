@@ -9,7 +9,7 @@ void main() async {
 
   await Supabase.initialize(
     url: 'https://izkkxdsuvjuuthtcvsvl.supabase.co',
-    anonKey: 'vuestra_anon_key',
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml6a2t4ZHN1dmp1dXRodGN2c3ZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1MTMzNDEsImV4cCI6MjA4NzA4OTM0MX0.ROkD_1DJhNy_ZPLSEZsAHMMMGn2VHkj8XOVj2AcDago',
   );
 
   runApp(
@@ -19,8 +19,15 @@ void main() async {
   );
 }
 
-class GoBiteApp extends StatelessWidget {
+class GoBiteApp extends StatefulWidget {
   const GoBiteApp({super.key});
+
+  @override
+  State<GoBiteApp> createState() => _GoBiteAppState();
+}
+
+class _GoBiteAppState extends State<GoBiteApp> {
+  final _supabase = Supabase.instance.client;
 
   @override
   Widget build(BuildContext context) {
@@ -34,9 +41,16 @@ class GoBiteApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: Supabase.instance.client.auth.currentSession != null
-          ? const MapScreen()
-          : const AuthScreen(),
+      home: StreamBuilder<AuthState>(
+        stream: _supabase.auth.onAuthStateChange,
+        builder: (context, snapshot) {
+          if (snapshot.hasData) {
+            final session = snapshot.data!.session;
+            if (session != null) return const MapScreen();
+          }
+          return const AuthScreen();
+        },
+      ),
     );
   }
 }
