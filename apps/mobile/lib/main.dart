@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'features/auth/auth_screen.dart';
 import 'features/map/map_screen.dart';
+import 'core/services/api_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -43,13 +44,21 @@ class _GoBiteAppState extends State<GoBiteApp> {
       ),
       home: StreamBuilder<AuthState>(
         stream: _supabase.auth.onAuthStateChange,
-        builder: (context, snapshot) {
-          if (snapshot.hasData) {
-            final session = snapshot.data!.session;
-            if (session != null) return const MapScreen();
-          }
-          return const AuthScreen();
-        },
+builder: (context, snapshot) {
+  if (snapshot.hasData) {
+    final event = snapshot.data!.event;
+    final session = snapshot.data!.session;
+    if (session != null) {
+      if (event == AuthChangeEvent.signedIn) {
+        // Sincronizar usuario con nuestro backend
+        final api = ApiService();
+        api.syncUser(session.user);
+      }
+      return const MapScreen();
+    }
+  }
+  return const AuthScreen();
+},
       ),
     );
   }

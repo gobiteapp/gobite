@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/restaurant.dart';
+import 'package:flutter/foundation.dart';
 
 class ApiService {
   final Dio _dio = Dio(BaseOptions(
@@ -45,4 +46,17 @@ class ApiService {
     final response = await _dio.get('/favorites');
     return (response.data as List).map((r) => Restaurant.fromJson(r['restaurant'])).toList();
   }
+
+  Future<void> syncUser(User user) async {
+  try {
+    await _dio.post('/users/sync', data: {
+      'id': user.id,
+      'email': user.email,
+      'user_metadata': user.userMetadata,
+    });
+  } catch (e) {
+    // Si falla no bloqueamos el login
+    debugPrint('Error syncing user: $e');
+  }
+}
 }
