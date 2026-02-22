@@ -1,8 +1,10 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import '../../core/models/restaurant.dart';
 import '../../core/providers/restaurants_provider.dart';
+import 'tiktok_iframe_web.dart' if (dart.library.io) 'tiktok_iframe_stub.dart';
 
 class RestaurantScreen extends ConsumerWidget {
   final String restaurantId;
@@ -170,15 +172,23 @@ class _VideoPlayer extends StatefulWidget {
 }
 
 class _VideoPlayerState extends State<_VideoPlayer> {
-  late final WebViewController _controller;
+  WebViewController? _controller;
+  late final String _viewId;
 
   @override
   void initState() {
     super.initState();
-    if (widget.video.tiktokUrl != null) {
+    final url = widget.video.tiktokUrl;
+    if (url == null) return;
+
+    if (kIsWeb) {
+      final videoId = Uri.parse(url).pathSegments.last;
+      _viewId = 'tiktok-$videoId';
+      registerTikTokView(_viewId, videoId);
+    } else {
       _controller = WebViewController()
         ..setJavaScriptMode(JavaScriptMode.unrestricted)
-        ..loadRequest(Uri.parse(widget.video.tiktokUrl!));
+        ..loadRequest(Uri.parse(url));
     }
   }
 
@@ -187,6 +197,9 @@ class _VideoPlayerState extends State<_VideoPlayer> {
     if (widget.video.tiktokUrl == null) {
       return const Center(child: Icon(Icons.videocam_off, color: Colors.grey, size: 60));
     }
-    return WebViewWidget(controller: _controller);
+    if (kIsWeb) {
+      return HtmlElementView(viewType: _viewId);
+    }
+    return WebViewWidget(controller: _controller!);
   }
 }

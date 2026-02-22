@@ -50,6 +50,9 @@ dependencies:
   # Estado
   flutter_riverpod: ^2.0.0
   
+  # Web interop (reemplaza dart:html deprecado)
+  web: ^1.0.0
+
   # Iconos
   cupertino_icons: ^1.0.8
 
