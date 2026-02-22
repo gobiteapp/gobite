@@ -6,6 +6,7 @@ import 'package:latlong2/latlong.dart';
 import '../../core/models/restaurant.dart';
 import '../../core/providers/restaurants_provider.dart';
 import '../restaurant/restaurant_screen.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class MapScreen extends ConsumerStatefulWidget {
   const MapScreen({super.key});
@@ -99,6 +100,23 @@ urlTemplate: 'https://api.maptiler.com/maps/streets-v2-dark/{z}/{x}/{y}.png?key=
               ),
             ),
           ),
+          Positioned(
+  top: 60,
+  right: 20,
+  child: GestureDetector(
+    onTap: () async {
+      await Supabase.instance.client.auth.signOut();
+    },
+    child: Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.5),
+        shape: BoxShape.circle,
+      ),
+      child: const Icon(Icons.logout, color: Colors.white),
+    ),
+  ),
+),
         ],
       ),
     );
