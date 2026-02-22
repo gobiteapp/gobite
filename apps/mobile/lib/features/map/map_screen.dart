@@ -65,7 +65,10 @@ urlTemplate: 'https://api.maptiler.com/maps/streets-v2-dark/{z}/{x}/{y}.png?key=
                   markers: restaurants.map((r) => _buildMarker(r)).toList(),
                 ),
                 loading: () => const MarkerLayer(markers: []),
-                error: (_, __) => const MarkerLayer(markers: []),
+                error: (error, _) {
+                  debugPrint('Error en mapa al cargar restaurantes: $error');
+                  return const MarkerLayer(markers: []);
+                },
               ),
               MarkerLayer(
                 markers: [
