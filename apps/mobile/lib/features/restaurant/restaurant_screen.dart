@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:webview_flutter_android/webview_flutter_android.dart';
+import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
 import '../../core/models/restaurant.dart';
 import '../../core/providers/restaurants_provider.dart';
+import '../../core/services/api_service.dart';
 
 class RestaurantScreen extends ConsumerWidget {
   final String restaurantId;
@@ -38,6 +42,49 @@ class _RestaurantDetail extends StatefulWidget {
 class _RestaurantDetailState extends State<_RestaurantDetail> {
   int _currentVideoIndex = 0;
   bool _isFavorite = false;
+  bool _isFavoriteLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFavoriteStatus();
+  }
+
+  Future<void> _loadFavoriteStatus() async {
+    if (Supabase.instance.client.auth.currentSession == null) return;
+    try {
+      final favorites = await ApiService().getFavorites();
+      if (mounted) {
+        setState(() => _isFavorite = favorites.any((r) => r.id == widget.restaurant.id));
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _toggleFavorite() async {
+    if (Supabase.instance.client.auth.currentSession == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Inicia sesión para guardar favoritos'),
+          backgroundColor: Color(0xFF1C1C18),
+        ),
+      );
+      return;
+    }
+    if (_isFavoriteLoading) return;
+    final newValue = !_isFavorite;
+    setState(() { _isFavorite = newValue; _isFavoriteLoading = true; });
+    try {
+      if (newValue) {
+        await ApiService().addFavorite(widget.restaurant.id);
+      } else {
+        await ApiService().removeFavorite(widget.restaurant.id);
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isFavorite = !newValue);
+    } finally {
+      if (mounted) setState(() => _isFavoriteLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -141,21 +188,59 @@ class _RestaurantDetailState extends State<_RestaurantDetail> {
             top: 50,
             right: 16,
             child: GestureDetector(
-              onTap: () => setState(() => _isFavorite = !_isFavorite),
+              onTap: _toggleFavorite,
               child: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: Colors.black.withOpacity(0.5),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(
-                  _isFavorite ? Icons.favorite : Icons.favorite_border,
-                  color: _isFavorite ? const Color(0xFFFF5C00) : Colors.white,
-                  size: 28,
-                ),
+                child: _isFavoriteLoading
+                    ? const SizedBox(
+                        width: 28,
+                        height: 28,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : Icon(
+                        _isFavorite ? Icons.favorite : Icons.favorite_border,
+                        color: _isFavorite ? const Color(0xFFFF5C00) : Colors.white,
+                        size: 28,
+                      ),
               ),
             ),
           ),
+
+          // Indicador de vídeos (solo si hay más de uno)
+          if (hasVideos && restaurant.videos.length > 1)
+            Positioned(
+              right: 16,
+              top: 0,
+              bottom: 0,
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: List.generate(
+                    restaurant.videos.length,
+                    (i) => AnimatedContainer(
+                      duration: const Duration(milliseconds: 250),
+                      curve: Curves.easeInOut,
+                      margin: const EdgeInsets.symmetric(vertical: 3),
+                      width: 4,
+                      height: _currentVideoIndex == i ? 20 : 8,
+                      decoration: BoxDecoration(
+                        color: _currentVideoIndex == i
+                            ? const Color(0xFFFF5C00)
+                            : Colors.white.withOpacity(0.4),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -172,16 +257,47 @@ class _VideoPlayer extends StatefulWidget {
 
 class _VideoPlayerState extends State<_VideoPlayer> {
   WebViewController? _controller;
+  bool _isLoading = true;
+  bool _hasError = false;
+  int _retryCount = 0;
+  String? _videoId;
 
-  /// Convierte una URL normal de TikTok en la URL del embed oficial.
-  /// https://www.tiktok.com/@user/video/12345 → https://www.tiktok.com/embed/v2/12345
-  String _toEmbedUrl(String url) {
+  /// Extrae el ID numérico de vídeo de una URL de TikTok.
+  String? _extractVideoId(String url) {
     final match = RegExp(r'/video/(\d+)').firstMatch(url);
-    if (match != null) {
-      return 'https://www.tiktok.com/embed/v2/${match.group(1)}';
-    }
-    return url;
+    return match?.group(1);
   }
+
+  /// HTML wrapper que embebe el vídeo en un <iframe allow="autoplay">.
+  /// Esto deja que el player JavaScript de TikTok gestione la reproducción.
+  String _buildEmbedHtml(String videoId) => '''<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    html,body{width:100vw;height:100vh;background:#000;overflow:hidden}
+    #tk{position:fixed;top:0;left:0;width:100%;height:100%;border:0}
+  </style>
+</head>
+<body>
+  <iframe id="tk"
+    src="https://www.tiktok.com/embed/v2/$videoId?autoplay=1&music_info=0&description=0"
+    allow="autoplay; fullscreen; encrypted-media"
+    allowfullscreen scrolling="no" frameborder="0">
+  </iframe>
+  <script>
+    var frame=document.getElementById('tk'), done=false;
+    function notify(msg){
+      if(!done&&typeof GoBiteLog!=='undefined'){done=true;GoBiteLog.postMessage(msg);}
+    }
+    frame.addEventListener('load',function(){setTimeout(function(){notify('tiktok_loaded');},800);});
+    frame.addEventListener('error',function(){notify('tiktok_error');});
+    setTimeout(function(){notify('tiktok_loaded');},10000);
+  </script>
+</body>
+</html>''';
 
   @override
   void initState() {
@@ -189,181 +305,125 @@ class _VideoPlayerState extends State<_VideoPlayer> {
     final originalUrl = widget.video.tiktokUrl;
     if (originalUrl == null) return;
 
-    final embedUrl = _toEmbedUrl(originalUrl);
-    final uri = Uri.tryParse(embedUrl);
-    if (uri == null || (uri.scheme != 'https' && uri.scheme != 'http')) {
-      debugPrint('URL de vídeo inválida: $embedUrl');
+    _videoId = _extractVideoId(originalUrl);
+    if (_videoId == null) {
+      debugPrint('No se pudo extraer el ID del vídeo: $originalUrl');
       return;
     }
 
-    _controller = WebViewController()
+    late final PlatformWebViewControllerCreationParams params;
+    if (WebViewPlatform.instance is WebKitWebViewPlatform) {
+      params = WebKitWebViewControllerCreationParams(
+        allowsInlineMediaPlayback: true,
+      );
+    } else {
+      params = const PlatformWebViewControllerCreationParams();
+    }
+
+    _controller = WebViewController.fromPlatformCreationParams(params)
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(Colors.black)
-      ..setNavigationDelegate(NavigationDelegate(
-        onNavigationRequest: (request) {
-          final dest = Uri.tryParse(request.url);
-          if (dest == null || (dest.scheme != 'https' && dest.scheme != 'http')) {
-            debugPrint('WebView bloqueó deep link: ${request.url}');
-            return NavigationDecision.prevent;
+      ..addJavaScriptChannel(
+        'GoBiteLog',
+        onMessageReceived: (message) {
+          debugPrint('WebLog: ${message.message}');
+          if (!mounted) return;
+          if (message.message == 'tiktok_loaded') {
+            setState(() => _isLoading = false);
+          } else if (message.message == 'tiktok_error') {
+            setState(() { _hasError = true; _isLoading = false; });
           }
-          return NavigationDecision.navigate;
         },
-        onPageFinished: (_) => _injectCleanup(),
-      ))
-      ..loadRequest(uri);
+      )
+      ..setNavigationDelegate(NavigationDelegate(
+        onPageStarted: (_) {
+          if (mounted) setState(() { _isLoading = true; _hasError = false; });
+        },
+        onPageFinished: (_) {
+          // Nuestro HTML wrapper cargó; TikTok sigue cargando dentro del iframe.
+          // _isLoading se gestiona desde GoBiteLog ('tiktok_loaded').
+        },
+        onWebResourceError: (error) {
+          debugPrint('WebError: ${error.description}');
+          if (error.isForMainFrame == true) {
+            if (mounted) setState(() { _hasError = true; _isLoading = false; });
+          }
+        },
+      ));
+
+    // Permitir reproducción automática sin interacción del usuario (Autoplay) en Android
+    final platform = _controller!.platform;
+    if (platform is AndroidWebViewController) {
+      platform.setMediaPlaybackRequiresUserGesture(false);
+    }
+
+    _controller!.loadHtmlString(_buildEmbedHtml(_videoId!));
   }
 
-  Future<void> _injectCleanup() async {
-    await _controller?.runJavaScript(r'''
-      (function() {
+  Widget _buildLoadingOverlay() {
+    return AnimatedOpacity(
+      opacity: _isLoading ? 1.0 : 0.0,
+      duration: const Duration(milliseconds: 400),
+      child: IgnorePointer(
+        ignoring: !_isLoading,
+        child: Container(
+          color: const Color(0xFF0A0A08),
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const CircularProgressIndicator(
+                  color: Color(0xFFFF5C00),
+                  strokeWidth: 2.5,
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'Cargando vídeo...',
+                  style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 14),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
-        // ============================================================
-        // PRIORIDAD 1: COOKIES
-        // Eliminar el banner del DOM + MutationObserver para detectarlo
-        // cuando aparece tarde (TikTok lo inyecta de forma asíncrona)
-        // ============================================================
-        function removeCookieBanner() {
-          const selectors = [
-            '[data-e2e="cookie-banner"]',
-            '[class*="CookieBanner"]',
-            '[class*="cookie-banner"]',
-            '[class*="DivConsent"]',
-            '[class*="ConsentBanner"]',
-            '[class*="consent-modal"]',
-            '[class*="tiktok-cookie"]',
-            '[id*="cookie"]',
-            '[id*="consent"]',
-          ];
-          selectors.forEach(sel =>
-            document.querySelectorAll(sel).forEach(el => el.remove())
-          );
-          // Fallback: click en botón de aceptar todo usando dispatchEvent
-          // (btn.click() puede ser bloqueado por React; dispatchEvent no)
-          document.querySelectorAll('button').forEach(btn => {
-            const t = (btn.textContent || '').trim().toLowerCase();
-            if (t === 'allow all' || t === 'accept all' || t === 'aceptar todo' ||
-                t.includes('allow all') || t.includes('accept all')) {
-              btn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
-            }
-          });
-          // Guardar consentimiento en localStorage para evitar que reaparezca
-          try { localStorage.setItem('tt_consent_v2', '1'); } catch(e) {}
-        }
+  Widget _buildErrorWidget() {
+    return Container(
+      color: const Color(0xFF0A0A08),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.signal_wifi_off_rounded, color: Colors.white.withOpacity(0.3), size: 52),
+            const SizedBox(height: 16),
+            Text(
+              'No se pudo cargar el vídeo',
+              style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 16, fontWeight: FontWeight.w500),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Comprueba tu conexión',
+              style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 13),
+            ),
+            const SizedBox(height: 24),
+            if (_retryCount < 3)
+              TextButton(
+                onPressed: _retry,
+                style: TextButton.styleFrom(foregroundColor: const Color(0xFFFF5C00)),
+                child: const Text('Reintentar'),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 
-        removeCookieBanner();
-
-        // Observer activo 15s — detecta el banner si aparece tarde
-        const cookieObserver = new MutationObserver(() => removeCookieBanner());
-        cookieObserver.observe(document.documentElement, { childList: true, subtree: true });
-        setTimeout(() => cookieObserver.disconnect(), 15000);
-
-        // ============================================================
-        // PRIORIDAD 2 + 3: TAMAÑO Y ELEMENTOS SOBRANTES
-        // CSS inyectado una sola vez
-        // ============================================================
-        if (document.getElementById('gobite-clean')) return;
-
-        const css = `
-          html, body {
-            width: 100vw !important;
-            height: 100vh !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            background: #000 !important;
-            overflow: hidden !important;
-          }
-
-          /* Contenedor raíz de TikTok embed: forzar a pantalla completa */
-          body > div {
-            width: 100vw !important;
-            max-width: 100vw !important;
-            height: 100vh !important;
-            max-height: 100vh !important;
-            margin: 0 !important;
-            border-radius: 0 !important;
-            overflow: hidden !important;
-          }
-
-          /* El vídeo ocupa toda la pantalla */
-          video {
-            width: 100vw !important;
-            height: 100vh !important;
-            max-width: 100vw !important;
-            max-height: 100vh !important;
-            object-fit: cover !important;
-            position: fixed !important;
-            top: 0 !important;
-            left: 0 !important;
-            z-index: 1 !important;
-          }
-
-          /* Ocultar: foto + nombre del creador (arriba) */
-          [class*="AuthorInfo"],
-          [class*="DivAuthor"],
-          [class*="AuthorAvatar"],
-          [class*="AuthorName"],
-          [class*="UserAvatar"],
-          [class*="DivUserInfo"],
-          [class*="UniqueId"],
-
-          /* Ocultar: botones de la derecha (like, comment, share, follow) */
-          [class*="ActionItemContainer"],
-          [class*="DivActionItem"],
-          [class*="SideBar"],
-          [class*="DivSideBar"],
-          [class*="ActionBar"],
-
-          /* Ocultar: descripción y hashtags */
-          [class*="DescriptionContainer"],
-          [class*="DivCaption"],
-          [class*="DivDesc"],
-          [class*="SpanHashtag"],
-          [class*="SpanHashTag"],
-
-          /* Ocultar: información de música */
-          [class*="MusicInfo"],
-          [class*="DivMusic"],
-          [class*="MusicCard"],
-
-          /* Ocultar: 'Watch now' / 'View profile' / 'Watch on TikTok' */
-          [class*="WatchNow"],
-          [class*="ViewProfile"],
-          [class*="WatchOnTikTok"],
-          [class*="FollowButton"],
-
-          /* Ocultar: header y footer del embed */
-          [class*="EmbedHeader"],
-          [class*="DivHeader"],
-          [class*="EmbedFooter"],
-          [class*="DivFooter"],
-
-          /* Ocultar: nombre de usuario abajo */
-          [class*="DivUsername"],
-
-          /* Ocultar: cookies y consent (por si el observer falla) */
-          [class*="cookie"], [class*="Cookie"],
-          [class*="consent"], [class*="Consent"],
-          [id*="cookie"], [id*="consent"] {
-            display: none !important;
-          }
-
-          /* Mantener controles de vídeo visibles encima del vídeo */
-          [class*="PlayerControl"],
-          [class*="player-control"],
-          [class*="Controls"],
-          [class*="controls"] {
-            z-index: 2 !important;
-            position: relative !important;
-          }
-        `;
-
-        const style = document.createElement('style');
-        style.id = 'gobite-clean';
-        style.textContent = css;
-        document.head.appendChild(style);
-
-      })();
-    ''');
+  void _retry() {
+    if (_videoId == null) return;
+    setState(() { _isLoading = true; _hasError = false; _retryCount++; });
+    _controller?.loadHtmlString(_buildEmbedHtml(_videoId!));
   }
 
   @override
@@ -371,8 +431,17 @@ class _VideoPlayerState extends State<_VideoPlayer> {
     if (_controller == null) {
       return const Center(child: Icon(Icons.videocam_off, color: Colors.grey, size: 60));
     }
+    if (_hasError && !_isLoading) {
+      return _buildErrorWidget();
+    }
     return SizedBox.expand(
-      child: WebViewWidget(controller: _controller!),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          WebViewWidget(controller: _controller!),
+          _buildLoadingOverlay(),
+        ],
+      ),
     );
   }
 }
