@@ -6,6 +6,7 @@ import 'package:latlong2/latlong.dart';
 import '../../core/models/restaurant.dart';
 import '../../core/providers/restaurants_provider.dart';
 import '../restaurant/restaurant_screen.dart';
+import '../favorites/favorites_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class MapScreen extends ConsumerStatefulWidget {
@@ -32,12 +33,21 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) return;
     }
-    if (permission == LocationPermission.deniedForever) return;
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) return;
 
-    final position = await Geolocator.getCurrentPosition();
-    setState(() => _position = position);
+    try {
+      final position = await Geolocator.getCurrentPosition(
+        timeLimit: const Duration(seconds: 10),
+      );
+      if (!mounted) return;
+      setState(() => _position = position);
+    } catch (_) {
+      final last = await Geolocator.getLastKnownPosition();
+      if (!mounted) return;
+      if (last != null) setState(() => _position = last);
+    }
   }
 
   @override
@@ -72,7 +82,10 @@ urlTemplate: 'https://api.maptiler.com/maps/streets-v2-dark/{z}/{x}/{y}.png?key=
                   markers: restaurants.map((r) => _buildMarker(r)).toList(),
                 ),
                 loading: () => const MarkerLayer(markers: []),
-                error: (_, __) => const MarkerLayer(markers: []),
+                error: (error, _) {
+                  debugPrint('Error en mapa al cargar restaurantes: $error');
+                  return const MarkerLayer(markers: []);
+                },
               ),
               MarkerLayer(
                 markers: [
@@ -108,22 +121,27 @@ urlTemplate: 'https://api.maptiler.com/maps/streets-v2-dark/{z}/{x}/{y}.png?key=
             ),
           ),
           Positioned(
-  top: 60,
-  right: 20,
-  child: GestureDetector(
-    onTap: () async {
-      await Supabase.instance.client.auth.signOut();
-    },
-    child: Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.5),
-        shape: BoxShape.circle,
-      ),
-      child: const Icon(Icons.logout, color: Colors.white),
-    ),
-  ),
-),
+            top: 60,
+            right: 20,
+            child: Row(
+              children: [
+                _MapButton(
+                  icon: Icons.favorite_border,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const FavoritesScreen()),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _MapButton(
+                  icon: Icons.logout,
+                  onTap: () async {
+                    await Supabase.instance.client.auth.signOut();
+                  },
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -152,6 +170,28 @@ urlTemplate: 'https://api.maptiler.com/maps/streets-v2-dark/{z}/{x}/{y}.png?key=
           ),
           child: const Icon(Icons.restaurant, color: Colors.white, size: 28),
         ),
+      ),
+    );
+  }
+}
+
+class _MapButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _MapButton({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.5),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, color: Colors.white),
       ),
     );
   }

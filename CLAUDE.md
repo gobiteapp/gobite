@@ -219,3 +219,8 @@ flutter analyze          # Análisis estático
 | Fecha | Descripción |
 |---|---|
 | 2026-02-22 | Creación del archivo CLAUDE.md con análisis completo del proyecto: stack, estructura, endpoints, convenciones y estado de features |
+| 2026-02-22 | `api_service.dart`: cambiado `baseUrl` de `localhost:3000` a `10.0.2.2:3000` para compatibilidad con emulador Android |
+| 2026-02-22 | `map_screen.dart`: corregido flujo de permisos — `checkPermission()` antes de `requestPermission()`, manejo de `deniedForever`, `mounted` check |
+| 2026-02-22 | `map_screen.dart`: añadido `isLocationServiceEnabled()`, `getLastKnownPosition()`, timeout 10s en `getCurrentPosition()` y fallback al centro de Sevilla |
+| 2026-02-22 | `AndroidManifest.xml`: añadido permiso `INTERNET` — sin él Android bloquea todas las llamadas de red |
+| 2026-02-22 | `restaurant_screen.dart`: WebView con embed URL de TikTok (`/embed/v2/ID`), `Positioned.fill` para pantalla completa, `setBackgroundColor(black)`, `MutationObserver` para eliminar banner de cookies del DOM, CSS agresivo para ocultar perfil/botones/música/descripción y forzar vídeo a `100vw x 100vh` |

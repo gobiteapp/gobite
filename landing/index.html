@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GoBite — Decide dónde comer en minutos</title>
+    <meta name="description"
+        content="Descubre restaurantes cerca de ti con vídeos reales. Decide en minutos, no en horas." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap"
+        rel="stylesheet" />
+    <style>
+        :root {
+            --orange: #ff5000;
+            --orange-dim: rgba(255, 80, 0, 0.15);
+            --bg: #0b0a08;
+            --surface: #141310;
+            --surface2: #1e1c18;
+            --white: #f2ede6;
+            --gray: #7a756c;
+            --gray2: #3a3630;
+        }
+
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--white);
+            font-family: 'DM Sans', sans-serif;
+            font-weight: 300;
+            overflow-x: hidden;
+        }
+
+        /* GRAIN OVERLAY */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+            pointer-events: none;
+            z-index: 999;
+            opacity: 0.6;
+        }
+
+        /* NAV */
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            padding: 24px 48px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: linear-gradient(to bottom, rgba(11, 10, 8, 0.9), transparent);
+        }
+
+        .nav-logo {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 28px;
+            color: var(--orange);
+            letter-spacing: 2px;
+            text-decoration: none;
+        }
+
+        .nav-cta {
+            background: var(--orange);
+            color: #fff;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 13px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            padding: 10px 22px;
+            border: none;
+            border-radius: 100px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: opacity 0.2s;
+        }
+
+        .nav-cta:hover {
+            opacity: 0.85;
+        }
+
+        /* HERO */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 120px 24px 80px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero-glow {
+            position: absolute;
+            top: 30%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 700px;
+            height: 700px;
+            background: radial-gradient(circle, rgba(255, 80, 0, 0.18) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        .hero-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--orange-dim);
+            border: 1px solid rgba(255, 80, 0, 0.3);
+            color: var(--orange);
+            font-size: 12px;
+            font-weight: 500;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            padding: 6px 16px;
+            border-radius: 100px;
+            margin-bottom: 32px;
+            animation: fadeUp 0.6s ease both;
+        }
+
+        .hero-tag::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            background: var(--orange);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.3;
+            }
+        }
+
+        .hero h1 {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: clamp(72px, 12vw, 160px);
+            line-height: 0.9;
+            letter-spacing: 2px;
+            color: var(--white);
+            animation: fadeUp 0.6s 0.1s ease both;
+        }
+
+        .hero h1 span {
+            color: var(--orange);
+        }
+
+        .hero-sub {
+            font-size: clamp(16px, 2vw, 20px);
+            color: var(--gray);
+            max-width: 480px;
+            line-height: 1.6;
+            margin-top: 24px;
+            animation: fadeUp 0.6s 0.2s ease both;
+        }
+
+        .hero-form {
+            display: flex;
+            gap: 10px;
+            margin-top: 40px;
+            width: 100%;
+            max-width: 420px;
+            animation: fadeUp 0.6s 0.3s ease both;
+        }
+
+        .hero-form input {
+            flex: 1;
+            background: var(--surface2);
+            border: 1px solid var(--gray2);
+            color: var(--white);
+            font-family: 'DM Sans', sans-serif;
+            font-size: 15px;
+            padding: 14px 20px;
+            border-radius: 100px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .hero-form input::placeholder {
+            color: var(--gray);
+        }
+
+        .hero-form input:focus {
+            border-color: var(--orange);
+        }
+
+        .hero-form button {
+            background: var(--orange);
+            color: #fff;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 14px;
+            font-weight: 500;
+            padding: 14px 24px;
+            border: none;
+            border-radius: 100px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: opacity 0.2s, transform 0.15s;
+        }
+
+        .hero-form button:hover {
+            opacity: 0.9;
+            transform: scale(1.02);
+        }
+
+        .hero-form button:active {
+            transform: scale(0.98);
+        }
+
+        .hero-note {
+            font-size: 12px;
+            color: var(--gray);
+            margin-top: 12px;
+            animation: fadeUp 0.6s 0.4s ease both;
+        }
+
+        .hero-scroll {
+            position: absolute;
+            bottom: 32px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            color: var(--gray);
+            font-size: 11px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            animation: fadeUp 0.6s 0.6s ease both;
+        }
+
+        .hero-scroll-line {
+            width: 1px;
+            height: 40px;
+            background: linear-gradient(to bottom, var(--orange), transparent);
+            animation: scrollLine 2s infinite;
+        }
+
+        @keyframes scrollLine {
+            0% {
+                transform: scaleY(0);
+                transform-origin: top;
+            }
+
+            50% {
+                transform: scaleY(1);
+                transform-origin: top;
+            }
+
+            51% {
+                transform: scaleY(1);
+                transform-origin: bottom;
+            }
+
+            100% {
+                transform: scaleY(0);
+                transform-origin: bottom;
+            }
+        }
+
+        /* SUCCESS STATE */
+        .success-msg {
+            display: none;
+            align-items: center;
+            gap: 10px;
+            background: rgba(255, 80, 0, 0.1);
+            border: 1px solid rgba(255, 80, 0, 0.3);
+            color: var(--orange);
+            padding: 14px 24px;
+            border-radius: 100px;
+            font-size: 14px;
+            margin-top: 40px;
+            animation: fadeUp 0.4s ease both;
+        }
+
+        .success-msg.show {
+            display: flex;
+        }
+
+        /* PROBLEM */
+        .problem {
+            padding: 120px 48px;
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        .section-label {
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--orange);
+            margin-bottom: 16px;
+        }
+
+        .problem h2 {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: clamp(40px, 6vw, 72px);
+            line-height: 1;
+            letter-spacing: 1px;
+            color: var(--white);
+            max-width: 700px;
+            margin-bottom: 48px;
+        }
+
+        .problem-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1px;
+            background: var(--gray2);
+            border: 1px solid var(--gray2);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+
+        .problem-item {
+            background: var(--surface);
+            padding: 32px;
+        }
+
+        .problem-icon {
+            font-size: 28px;
+            margin-bottom: 16px;
+        }
+
+        .problem-item h3 {
+            font-size: 16px;
+            font-weight: 500;
+            color: var(--white);
+            margin-bottom: 8px;
+        }
+
+        .problem-item p {
+            font-size: 14px;
+            color: var(--gray);
+            line-height: 1.6;
+        }
+
+        /* HOW IT WORKS */
+        .how {
+            padding: 120px 48px;
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        .how h2 {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: clamp(40px, 6vw, 72px);
+            line-height: 1;
+            letter-spacing: 1px;
+            color: var(--white);
+            margin-bottom: 64px;
+        }
+
+        .steps {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 32px;
+            position: relative;
+        }
+
+        .step {
+            position: relative;
+        }
+
+        .step-num {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 64px;
+            color: var(--orange-dim);
+            line-height: 1;
+            margin-bottom: 16px;
+            -webkit-text-stroke: 1px rgba(255, 80, 0, 0.3);
+            color: transparent;
+        }
+
+        .step h3 {
+            font-size: 18px;
+            font-weight: 500;
+            color: var(--white);
+            margin-bottom: 8px;
+        }
+
+        .step p {
+            font-size: 14px;
+            color: var(--gray);
+            line-height: 1.6;
+        }
+
+        .step-line {
+            position: absolute;
+            top: 32px;
+            right: -16px;
+            width: 32px;
+            height: 1px;
+            background: linear-gradient(to right, var(--orange), transparent);
+        }
+
+        /* FEATURES */
+        .features {
+            padding: 120px 48px;
+            background: var(--surface);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .features::before {
+            content: '';
+            position: absolute;
+            top: -200px;
+            right: -200px;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(255, 80, 0, 0.08) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        .features-inner {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        .features h2 {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: clamp(40px, 6vw, 72px);
+            line-height: 1;
+            letter-spacing: 1px;
+            color: var(--white);
+            margin-bottom: 64px;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+        }
+
+        .feature-card {
+            background: var(--bg);
+            border: 1px solid var(--gray2);
+            border-radius: 16px;
+            padding: 32px;
+            transition: border-color 0.3s, transform 0.3s;
+        }
+
+        .feature-card:hover {
+            border-color: rgba(255, 80, 0, 0.4);
+            transform: translateY(-4px);
+        }
+
+        .feature-card .icon {
+            width: 44px;
+            height: 44px;
+            background: var(--orange-dim);
+            border: 1px solid rgba(255, 80, 0, 0.2);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            margin-bottom: 20px;
+        }
+
+        .feature-card h3 {
+            font-size: 17px;
+            font-weight: 500;
+            color: var(--white);
+            margin-bottom: 8px;
+        }
+
+        .feature-card p {
+            font-size: 14px;
+            color: var(--gray);
+            line-height: 1.6;
+        }
+
+        /* FINAL CTA */
+        .final-cta {
+            padding: 160px 48px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .final-cta::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 800px;
+            height: 400px;
+            background: radial-gradient(ellipse, rgba(255, 80, 0, 0.12) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        .final-cta h2 {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: clamp(48px, 8vw, 100px);
+            line-height: 0.95;
+            letter-spacing: 2px;
+            color: var(--white);
+            margin-bottom: 40px;
+            position: relative;
+        }
+
+        .final-cta h2 span {
+            color: var(--orange);
+        }
+
+        .final-form {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            width: 100%;
+            max-width: 420px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .final-form input {
+            flex: 1;
+            background: var(--surface2);
+            border: 1px solid var(--gray2);
+            color: var(--white);
+            font-family: 'DM Sans', sans-serif;
+            font-size: 15px;
+            padding: 14px 20px;
+            border-radius: 100px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .final-form input::placeholder {
+            color: var(--gray);
+        }
+
+        .final-form input:focus {
+            border-color: var(--orange);
+        }
+
+        .final-form button {
+            background: var(--orange);
+            color: #fff;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 14px;
+            font-weight: 500;
+            padding: 14px 24px;
+            border: none;
+            border-radius: 100px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: opacity 0.2s;
+        }
+
+        .final-form button:hover {
+            opacity: 0.9;
+        }
+
+        /* FOOTER */
+        footer {
+            border-top: 1px solid var(--gray2);
+            padding: 32px 48px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        footer .logo {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 22px;
+            color: var(--orange);
+            letter-spacing: 2px;
+        }
+
+        footer p {
+            font-size: 13px;
+            color: var(--gray);
+        }
+
+        /* ANIMATIONS */
+        @keyframes fadeUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 0.7s ease, transform 0.7s ease;
+        }
+
+        .reveal.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* MOBILE */
+        @media (max-width: 640px) {
+            nav {
+                padding: 20px 24px;
+            }
+
+            .problem,
+            .how,
+            .features-inner {
+                padding-left: 24px;
+                padding-right: 24px;
+            }
+
+            .problem,
+            .how {
+                padding-top: 80px;
+                padding-bottom: 80px;
+            }
+
+            .features {
+                padding: 80px 24px;
+            }
+
+            .final-cta {
+                padding: 100px 24px;
+            }
+
+            footer {
+                padding: 24px;
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .hero-form {
+                flex-direction: column;
+            }
+
+            .final-form {
+                flex-direction: column;
+            }
+
+            .step-line {
+                display: none;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- NAV -->
+    <nav>
+        <a href="#" class="nav-logo">GoBite</a>
+        <a href="#waitlist" class="nav-cta">Únete a la lista</a>
+    </nav>
+
+    <!-- HERO -->
+    <section class="hero">
+        <div class="hero-glow"></div>
+        <div class="hero-tag">Próximamente en Sevilla</div>
+        <h1>DECIDE<br><span>DÓNDE</span><br>COMER</h1>
+        <p class="hero-sub">Abre el mapa, ve vídeos reales de los restaurantes cerca de ti y decide en minutos. Sin leer
+            reseñas. Sin saltar entre apps.</p>
+        <form class="hero-form" id="heroForm" onsubmit="submitWaitlist(event, 'heroEmail', 'heroSuccess')">
+            <input type="email" id="heroEmail" placeholder="tu@email.com" required />
+            <button type="submit">Reservar sitio</button>
+        </form>
+        <div class="success-msg" id="heroSuccess">
+            <span>✓</span> ¡Ya estás en la lista! Te avisamos cuando lancemos.
+        </div>
+        <p class="hero-note">Sin spam. Solo te avisamos cuando lancemos.</p>
+        <div class="hero-scroll">
+            <div class="hero-scroll-line"></div>
+        </div>
+    </section>
+
+    <!-- PROBLEM -->
+    <section class="problem">
+        <p class="section-label reveal">El problema</p>
+        <h2 class="reveal">Elegir restaurante no debería ser tan difícil</h2>
+        <div class="problem-grid reveal">
+            <div class="problem-item">
+                <div class="problem-icon">📍</div>
+                <h3>Google Maps</h3>
+                <p>Demasiado texto, fotos aburridas y reseñas de gente que no sabes si ha estado.</p>
+            </div>
+            <div class="problem-item">
+                <div class="problem-icon">📱</div>
+                <h3>TikTok / Instagram</h3>
+                <p>Inspiración sin ubicación clara. Ves un plato increíble y no sabes dónde está.</p>
+            </div>
+            <div class="problem-item">
+                <div class="problem-icon">⏱️</div>
+                <h3>El resultado</h3>
+                <p>Acabas en el mismo sitio de siempre, o tardas 20 minutos decidiendo con el estómago vacío.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- HOW IT WORKS -->
+    <section class="how">
+        <p class="section-label reveal">Cómo funciona</p>
+        <h2 class="reveal">En menos de<br><span style="color:var(--orange)">4 minutos</span></h2>
+        <div class="steps">
+            <div class="step reveal">
+                <div class="step-num">01</div>
+                <h3>Abre el mapa</h3>
+                <p>Ve todos los restaurantes cerca de ti en un mapa. Sin configurar nada.</p>
+                <div class="step-line"></div>
+            </div>
+            <div class="step reveal">
+                <div class="step-num">02</div>
+                <h3>Toca un pin</h3>
+                <p>Se abre la ficha con vídeos reales del restaurante. Comida real, ambiente real.</p>
+                <div class="step-line"></div>
+            </div>
+            <div class="step reveal">
+                <div class="step-num">03</div>
+                <h3>Decide</h3>
+                <p>Guarda en favoritos con un tap o abre la navegación directamente. Listo.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- FEATURES -->
+    <section class="features">
+        <div class="features-inner">
+            <p class="section-label reveal">Por qué GoBite</p>
+            <h2 class="reveal">Todo lo que<br>necesitas para decidir</h2>
+            <div class="features-grid">
+                <div class="feature-card reveal">
+                    <div class="icon">🎥</div>
+                    <h3>Vídeos reales</h3>
+                    <p>Nada de fotos de stock. Solo vídeos reales de foodies que han estado en el restaurante.</p>
+                </div>
+                <div class="feature-card reveal">
+                    <div class="icon">📍</div>
+                    <h3>Mapa inteligente</h3>
+                    <p>Los restaurantes aparecen directamente en el mapa según dónde estés. Sin buscar.</p>
+                </div>
+                <div class="feature-card reveal">
+                    <div class="icon">⭐</div>
+                    <h3>Reseñas verificadas</h3>
+                    <p>Solo opinan quienes han estado de verdad. Nada de reseñas anónimas sin contexto.</p>
+                </div>
+                <div class="feature-card reveal">
+                    <div class="icon">❤️</div>
+                    <h3>Favoritos</h3>
+                    <p>Guarda los que te molen con un tap. Consulta tu lista cuando tengas hambre.</p>
+                </div>
+                <div class="feature-card reveal">
+                    <div class="icon">💶</div>
+                    <h3>Precio real</h3>
+                    <p>El precio medio por persona calculado de tickets reales. No el que pone el restaurante.</p>
+                </div>
+                <div class="feature-card reveal">
+                    <div class="icon">⚡</div>
+                    <h3>Decisión en minutos</h3>
+                    <p>Diseñado para el momento real de hambre. No para inspirarte cuando no tienes hambre.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FINAL CTA -->
+    <section class="final-cta" id="waitlist">
+        <h2 class="reveal">ÚNETE A<br>LA <span>LISTA</span></h2>
+        <form class="final-form reveal" id="finalForm" onsubmit="submitWaitlist(event, 'finalEmail', 'finalSuccess')">
+            <input type="email" id="finalEmail" placeholder="tu@email.com" required />
+            <button type="submit">Apuntarme</button>
+        </form>
+        <div class="success-msg" id="finalSuccess" style="justify-content:center; margin-top:24px;">
+            <span>✓</span> ¡Ya estás en la lista!
+        </div>
+        <p style="font-size:13px; color:var(--gray); margin-top:16px;" class="reveal">Lanzamos en Sevilla. Sé de los
+            primeros.</p>
+    </section>
+
+    <!-- FOOTER -->
+    <footer>
+        <div class="logo">GoBite</div>
+        <p>© 2026 GoBite · gobite.es · Sevilla</p>
+    </footer>
+
+    <script>
+        // SCROLL REVEAL
+        const reveals = document.querySelectorAll('.reveal');
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach((entry, i) => {
+                if (entry.isIntersecting) {
+                    setTimeout(() => entry.target.classList.add('visible'), i * 80);
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.1 });
+        reveals.forEach(el => observer.observe(el));
+
+        // WAITLIST SUBMIT
+        async function submitWaitlist(e, inputId, successId) {
+            e.preventDefault();
+            const email = document.getElementById(inputId).value;
+            const btn = e.target.querySelector('button');
+            const originalText = btn.textContent;
+
+            btn.textContent = 'Guardando...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('https://izkkxdsuvjuuthtcvsvl.supabase.co/rest/v1/Waitlist', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml6a2t4ZHN1dmp1dXRodGN2c3ZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1MTMzNDEsImV4cCI6MjA4NzA4OTM0MX0.ROkD_1DJhNy_ZPLSEZsAHMMMGn2VHkj8XOVj2AcDago',
+                        'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml6a2t4ZHN1dmp1dXRodGN2c3ZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1MTMzNDEsImV4cCI6MjA4NzA4OTM0MX0.ROkD_1DJhNy_ZPLSEZsAHMMMGn2VHkj8XOVj2AcDago',
+                        'Prefer': 'return=minimal'
+                    },
+                    body: JSON.stringify({ email })
+                });
+
+                if (res.ok || res.status === 201) {
+                    e.target.style.display = 'none';
+                    document.getElementById(successId).classList.add('show');
+                } else {
+                    throw new Error();
+                }
+            } catch {
+                btn.textContent = originalText;
+                btn.disabled = false;
+                alert('Algo salió mal. Inténtalo de nuevo.');
+            }
+        }
+    </script>
+</body>
+
+</html>
