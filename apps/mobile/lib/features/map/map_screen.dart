@@ -6,7 +6,6 @@ import 'package:latlong2/latlong.dart';
 import '../../core/models/restaurant.dart';
 import '../../core/providers/restaurants_provider.dart';
 import '../restaurant/restaurant_screen.dart';
-import '../favorites/favorites_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class MapScreen extends ConsumerStatefulWidget {
@@ -53,21 +52,16 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   @override
   Widget build(BuildContext context) {
     if (_position == null) {
-      return const Scaffold(
-        backgroundColor: Color(0xFF0A0A08),
-        body: Center(
-          child: CircularProgressIndicator(color: Color(0xFFFF5C00)),
-        ),
+      return const Center(
+        child: CircularProgressIndicator(color: Color(0xFFFF5C00)),
       );
     }
 
     final location = (lat: _position!.latitude, lng: _position!.longitude);
     final restaurantsAsync = ref.watch(restaurantsProvider(location));
 
-    return Scaffold(
-      backgroundColor: const Color(0xFF0A0A08),
-      body: Stack(
-        children: [
+    return Stack(
+      children: [
           FlutterMap(
             mapController: _mapController,
             options: MapOptions(
@@ -123,27 +117,25 @@ urlTemplate: 'https://api.maptiler.com/maps/streets-v2-dark/{z}/{x}/{y}.png?key=
           Positioned(
             top: 60,
             right: 20,
-            child: Row(
-              children: [
-                _MapButton(
-                  icon: Icons.favorite_border,
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const FavoritesScreen()),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.5),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.location_on, color: Color(0xFFFF5C00), size: 16),
+                  SizedBox(width: 4),
+                  Text(
+                    'Cerca de ti',
+                    style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
                   ),
-                ),
-                const SizedBox(width: 8),
-                _MapButton(
-                  icon: Icons.logout,
-                  onTap: () async {
-                    await Supabase.instance.client.auth.signOut();
-                  },
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-        ],
-      ),
+      ],
     );
   }
 
