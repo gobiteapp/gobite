@@ -120,48 +120,50 @@ class _RestaurantDetailState extends State<_RestaurantDetail> {
                   ),
           ),
 
-          // Datos superpuestos abajo
+          // Datos superpuestos abajo — IgnorePointer para no bloquear el swipe del PageView
           Positioned(
             bottom: 0,
             left: 0,
             right: 0,
-            child: Container(
-              padding: const EdgeInsets.fromLTRB(20, 40, 20, 40),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.bottomCenter,
-                  end: Alignment.topCenter,
-                  colors: [
-                    Colors.black.withOpacity(0.9),
-                    Colors.transparent,
-                  ],
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(restaurant.name,
-                      style: const TextStyle(
-                          color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      if (restaurant.googleRating != null) ...[
-                        const Icon(Icons.star, color: Color(0xFFFF5C00), size: 18),
-                        const SizedBox(width: 4),
-                        Text('${restaurant.googleRating}',
-                            style: const TextStyle(color: Colors.white, fontSize: 16)),
-                        const SizedBox(width: 16),
-                      ],
-                      if (restaurant.priceLevel != null)
-                        Text('€' * restaurant.priceLevel!,
-                            style: const TextStyle(color: Colors.white70, fontSize: 16)),
+            child: IgnorePointer(
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(20, 60, 20, 40),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                    colors: [
+                      Colors.black.withOpacity(0.9),
+                      Colors.transparent,
                     ],
                   ),
-                  const SizedBox(height: 8),
-                  Text(restaurant.address,
-                      style: const TextStyle(color: Colors.white60, fontSize: 14)),
-                ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(restaurant.name,
+                        style: const TextStyle(
+                            color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        if (restaurant.googleRating != null) ...[
+                          const Icon(Icons.star, color: Color(0xFFFF5C00), size: 18),
+                          const SizedBox(width: 4),
+                          Text('${restaurant.googleRating}',
+                              style: const TextStyle(color: Colors.white, fontSize: 16)),
+                          const SizedBox(width: 16),
+                        ],
+                        if (restaurant.priceLevel != null)
+                          Text('€' * restaurant.priceLevel!,
+                              style: const TextStyle(color: Colors.white70, fontSize: 16)),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(restaurant.address,
+                        style: const TextStyle(color: Colors.white60, fontSize: 14)),
+                  ],
+                ),
               ),
             ),
           ),
@@ -219,6 +221,7 @@ class _RestaurantDetailState extends State<_RestaurantDetail> {
               right: 16,
               top: 0,
               bottom: 0,
+              child: IgnorePointer(
               child: Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -241,6 +244,7 @@ class _RestaurantDetailState extends State<_RestaurantDetail> {
                 ),
               ),
             ),
+          ),
         ],
       ),
     );
